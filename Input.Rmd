@@ -1,0 +1,112 @@
+---
+title: "Data Analysis"
+author: "Tuo"
+date: "4/5/2022"
+output:
+  word_document: default
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+# Set up
+```{r}
+# 载入包裹
+library(tidyverse)
+library(readxl)
+```
+
+# Load data
+```{r}
+# 读取数据
+price <- read_excel("price.xlsx")
+View(price) 
+```
+
+# Data Transformation
+```{r}
+# 更改数据列名称
+colnames(price) <- c("names","price","category","sales","warehouse")
+price$category <- as.character(price$category)
+```
+
+# Plots for one variable
+```{r}
+# 可以从图看出，大部分销售价格在0-3.5之间， 销售价格在7.5以上的产品比较罕见
+ggplot(data = price, aes(x=price)) + 
+  geom_histogram(bins = 25, binwidth = 1.5)+
+  ylim(0,30)+
+  xlim(0,10)+ 
+  labs(x = "sale price",
+       y = "count",
+       title = "Histogram for sale price",
+       )
+
+# 可以从图看出，大部分销售数量在5000以下，只有5个商贩的数量在10000以上。其中有一个商贩的销售数量在30000之上。
+ggplot(data = price, aes(y=sales)) + 
+  geom_boxplot()+
+  labs(y = "sale quantity",
+       title = "Boxplot for sale quantity",
+       )
+
+#大部分货品是从发货地（东）发出的
+ggplot(data = price, aes(x=warehouse)) + 
+  geom_bar()+
+  labs(x = "Warehouse Location(East and West)",
+       y = "count",
+       title = "Histogram for Warehouse Location",
+       )
+
+# 对于商品的分类1和2 占比相当，趋于相同
+ggplot(data = price, aes(x=category)) + 
+  geom_bar()+
+  labs(x = "Category",
+       y = "count",
+       title = "Histogram for Category",
+       )
+
+```
+
+# Plots for two variables
+```{r}
+# 可以从散点出看出，大部分商品的销售价格在4以下，销售数量在10000以下。
+ggplot(data = price, aes(x=price, y=sales)) + 
+  geom_point()+
+  labs(title = 'scatterplot between price and sales quantitiy')
+
+```
+
+# OLS model
+```{r}
+model1 <- lm(sales ~ price, data = price)
+summary(model1)
+confint(model1)
+ggplot(data=price, aes(x=price, y=sales))+
+  geom_point()+
+  geom_smooth(method=lm)
+# 模型结果显示p值=0.5816，模型的统计意义不显著（需要小于0.05可以认为显著）。销售价格和销售数量没有明显的回归关系
+# 虽然结果不显著，仍可以将这个模型概括为    销售数量 = 4789.7 - 219.8 * 销售价格（只有参考意义）
+# 销售价格的增高会导致销售数量的减少
+# 建议将异常值（销售量大于10000的观察点）去除，再做后续分析
+```
+
+# OLS model 2
+```{r}
+price_1 <- price %>% filter(sales <10000) 
+model2 <- lm(log(sales) ~ log(price), data = price_1)
+summary(model2)
+confint(model2)
+ggplot(data=price_1, aes(x=log(price), y=log(sales)))+
+  geom_point()+
+  geom_smooth(method=lm)
+
+# 将销售数量高于10000的数据切除，
+# 再将销售价格和销售数量对数函数化，用两者来做回归模型
+# 模型结果显示p值=0.01752，模型的统计意义显著。log（销售价格）和log（销售数量）有明显的回归关系
+# 模型结果统计意义显著，但R平方0.1098表示模型效果欠佳
+# 可以将这个模型概括为    log销售数量 = 6.9687 - 0.4554 * log销售价格
+# log销售价格的增高会导致log销售数量的增加
+# 建议尝试其他模型做后续分析
+
+```
+
